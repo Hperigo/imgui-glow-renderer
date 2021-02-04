@@ -11,6 +11,8 @@ glutin = "*"
 glow = "*"
 imgui-winit-support = "*"
 imgui = "*"
+memoffset = "*"
+
 [dependencies.nanovg]
 version = "*"
 features = ["gl3"]

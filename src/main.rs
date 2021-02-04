@@ -1,5 +1,8 @@
 use glow::*;
 
+#[macro_use]
+extern crate memoffset;
+
 use imgui::im_str;
 use nanovg::{
     Alignment, BasicCompositeOperation, Clip, Color, CompositeOperation, Font, Gradient, Image, ImagePattern,
@@ -9,6 +12,8 @@ use nanovg::{
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
 mod renderer;
+
+use std::time::Instant;
 
 fn main() {
 
@@ -32,7 +37,7 @@ fn main() {
         }
     };
     let scale_factor = windowed_context.window().scale_factor() as f32;
-
+    println!("SCALE FACTOR! {}", scale_factor); 
     let mut imgui = imgui::Context::create();
     imgui.set_ini_filename(None);
 
@@ -135,77 +140,57 @@ fn main() {
         use glutin::event_loop::ControlFlow;
 
         let mut changeable = 0.01;
+        let mut last_frame = Instant::now();
+
+        //let window ;
         event_loop.run(move |event, _, control_flow| {
 
             *control_flow = ControlFlow::Wait;
             match event {
-                Event::LoopDestroyed => {
-                    return;
-                }
-                Event::MainEventsCleared => {
-                    windowed_context.window().request_redraw();
-                }
-                Event::RedrawRequested(_) => {
-                    gl.clear(glow::COLOR_BUFFER_BIT);
-                   //gl.draw_arrays(glow::TRIANGLES, 0, 3);
+                    Event::NewEvents(_) => {
+                          // other application-specific logic
+                          let delta = Instant::now().duration_since(last_frame); //  last_frame.duration_since(  )
+                          imgui.io_mut().update_delta_time( delta );
+                          last_frame = Instant::now();
+                      },
+                      Event::MainEventsCleared => {
+                          // other application-specific logic
+                          platform.prepare_frame(imgui.io_mut(), &windowed_context.window()) // step 4
+                              .expect("Failed to prepare frame");
+                              &windowed_context.window().request_redraw();
+                      }
+                      Event::RedrawRequested(_) => {
+                          let ui = imgui.frame();
+                         
+                          imgui::Window::new( im_str!("Hello window!") )
+                          .size([300.0, 110.0], imgui::Condition::FirstUseEver)
+                          .build( &ui, || {
+                              imgui::Slider::new(im_str!("Slider!"))
+                              .range(0.0 ..= 1.0)
+                              .build(&ui, &mut changeable);
+                          });
+                          
+                          
+                          platform.prepare_render(&ui, &windowed_context.window()); // step 5
 
 
-                    //gl.viewport(0, 0, (width * scale_factor) as i32, (height * scale_factor) as i32 );
-
-                    /*
-                    vg_context.frame((width, height), scale_factor, | frame | {
-
-                        frame.path(
-                            |path| {
-                                path.rect((0.0, 0.0), (300.0, 300.0));
-                                path.fill(
-                                    Gradient::Linear {
-                                        start: (100.0, 100.0),
-                                        end: (400.0, 400.0),
-                                        start_color: Color::from_rgb(0xAA, 0x6C, 0x39),
-                                        end_color: Color::from_rgb(0x88, 0x2D, 0x60),
-                                    },
-                                    Default::default(),
-                                );
-                            },
-                            Default::default(),
-                        );
+                            gl.clear(glow::COLOR_BUFFER_BIT);
+    
                         
+                                let draw_data = ui.render();
+                                imgui_renderer.render(&gl, &draw_data);
                         
-                    });// end of nanovg context ----
-                    */
-
-
-                    let mut ui = imgui.frame();
-                    
-                    imgui::Window::new( im_str!("Hello window!") )
-                        .size([300.0, 110.0], imgui::Condition::FirstUseEver)
-                        .build( &ui, || {
-                            imgui::Slider::new(im_str!("Slider!"))
-                            .range(0.0 ..= 1.0)
-                            .build(&ui, &mut changeable);
-                        });
-
-                    let draw_data = ui.render();
-                    imgui_renderer.render(&gl, &draw_data);
-
-                    windowed_context.swap_buffers().unwrap();
-                }
-                Event::WindowEvent { ref event, .. } => match event {
-                    WindowEvent::Resized(physical_size) => {
-                        windowed_context.resize(*physical_size);
-                    }
-                    WindowEvent::CloseRequested => {
-                        gl.delete_program(program);
-                        gl.delete_vertex_array(vertex_array);
-                        *control_flow = ControlFlow::Exit
-                    }
-                    _ => (),
-                },
-                event => {
-                    platform.handle_event(imgui.io_mut(), windowed_context.window(), &event);
-                },
-            }
+                                windowed_context.swap_buffers().unwrap();
+                      },
+                      Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
+                          *control_flow = ControlFlow::Exit;
+                      }
+                      // other application-specific event handling
+                      event => {
+                          platform.handle_event(imgui.io_mut(), &windowed_context.window(), &event); // step 3
+                          // other application-specific event handling
+                      }
+            } 
         });
     }
 }
