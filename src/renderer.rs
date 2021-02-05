@@ -2,6 +2,8 @@ pub extern crate imgui;
 
 
 
+use std::borrow::Borrow;
+
 use glow::*;
 
 use imgui::internal::RawWrapper;
@@ -17,7 +19,7 @@ pub struct Renderer{
 }
 
 impl Renderer{
-    pub fn new( gl : &glow::Context ) -> Self{
+    pub fn new( gl : &glow::Context, imgui : &mut imgui::Context ) -> Self{
         
         let (program, vao, vbo, ebo)  = unsafe {
             
@@ -50,14 +52,15 @@ impl Renderer{
 
                 //Frag Shader ---- 
                 r#"
-                // uniform sampler2D tex;
+                uniform sampler2D tex;
                 in vec2 f_uv;
                 in vec4 f_color;
                 
                 out vec4 out_color;
                 
                 void main() {
-                  out_color = f_color * vec4(f_uv * 0.01 + 1.0, 1.0, 1.0); //vec4(1.0, 1.0, 1.0, 1.0); // f_color * texture(tex, f_uv.st);
+                  vec4 col =  texture(tex, f_uv.st);
+                  out_color = f_color * col;
                 }"#,
             );
     
@@ -102,9 +105,24 @@ impl Renderer{
             (program, vao, vbo, ebo)
         };
 
+        let texture = unsafe {// Build fonts atlas
+
+            let font_texture = gl.create_texture().expect("could not create texture");   //return_param(|x| gl.GenTextures(1, x));
+            gl.bind_texture(glow::TEXTURE_2D, Some(font_texture));
+            
+            gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MIN_FILTER, glow::LINEAR as _);
+            gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MAG_FILTER, glow::LINEAR as _);
+            
+            let mut fonts =  imgui.fonts();
+            let texture_atlas= fonts.build_rgba32_texture();
+            gl.tex_image_2d(glow::TEXTURE_2D, 0, glow::RGBA as _, texture_atlas.width as _, texture_atlas.height as _, 0, glow::RGBA, glow::UNSIGNED_BYTE ,  Some(&texture_atlas.data) );
+            gl.pixel_store_i32(glow::UNPACK_ROW_LENGTH, 0);
+            font_texture
+        };
+
         Renderer { 
             program,
-            font_texture : 0,
+            font_texture : texture,
             ebo : ebo,
             vao : vao,
             vbo : vbo,
@@ -125,8 +143,6 @@ impl Renderer{
         let top = draw_data.display_pos[1];
         let bottom = draw_data.display_pos[1] + draw_data.display_size[1];
 
-        println!("left: {}, right: {}, top: {}, bottom: {}", left, right, top, bottom);
-        
         unsafe{
             gl.viewport(0, 0, fb_width as _, fb_height as _);
         }
@@ -145,30 +161,14 @@ impl Renderer{
         let clip_off = draw_data.display_pos;
         let clip_scale = draw_data.framebuffer_scale;
 
-
-// glUseProgram(g_ShaderHandle);
-// glUniform1i(g_AttribLocationTex, 0);
-// glUniformMatrix4fv(g_AttribLocationProjMtx, 1, GL_FALSE, &ortho_projection[0][0]);
-
     unsafe{
         
-
 
         for draw_list in draw_data.draw_lists() {
             let vtx_buffer = draw_list.vtx_buffer();
 
             gl.bind_vertex_array( Some(self.vao) );
-
             gl.bind_buffer( glow::ARRAY_BUFFER, Some(self.vbo));
-
-            let mut positions : Vec<f32> = Vec::new();
-            // let scale = 1000.0;
-            // positions.append(&mut vec![
-            //     0.5 * scale,  0.5 * scale,   // top right
-            //     0.5 * scale, -0.5 * scale,   // bottom right
-            //    -0.5 * scale, -0.5 * scale,   // bottom left
-            //    -0.5 * scale,  0.5 * scale,   // top left 
-            // ]);
 
             let buffer = std::slice::from_raw_parts(
                                 vtx_buffer.as_ptr() as *const u8,
@@ -176,10 +176,6 @@ impl Renderer{
             
             let mut indices : Vec<u16> = Vec::new();
 
-            // indices.append(&mut vec![
-            //     0,1,3,
-            //     1,2,3,
-            // ]);
             for data in draw_list.idx_buffer(){
                 indices.push(*data);
             }
@@ -201,8 +197,6 @@ impl Renderer{
             let uv_attrib_loc = gl.get_attrib_location(self.program, "uv").expect("could not find uv attrib");
             let color_attrib_loc = gl.get_attrib_location(self.program, "col").expect("could not find color attrib");
 
-            println!("offsets locs: {}, {}, {}", offset_of!(imgui::DrawVert, pos), offset_of!(imgui::DrawVert, col), offset_of!(imgui::DrawVert, uv));
-            
             gl.enable_vertex_attrib_array(pos_attrib_loc);
             gl.vertex_attrib_pointer_f32(
                 pos_attrib_loc,
@@ -238,6 +232,10 @@ impl Renderer{
             gl.bind_buffer( glow::ELEMENT_ARRAY_BUFFER, None);
             gl.bind_buffer( glow::ARRAY_BUFFER, None);
 
+
+
+            gl.enable( glow::BLEND );
+            gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
             gl.use_program(Some(self.program));
             
             let shader_loc = gl.get_uniform_location(self.program, "matrix").expect("error finding matrix uniform");
@@ -247,10 +245,13 @@ impl Renderer{
                 &matrix,
                 );
 
-             gl.bind_vertex_array(Some(self.vao));
-            // gl.draw_elements(glow::TRIANGLES, indices.len() as i32, glow::UNSIGNED_SHORT, 0);
+            let texture_loc = gl.get_uniform_location(self.program, "tex").expect("error finding texture sampler uniform");
+            gl.bind_texture(glow::TEXTURE_2D, Some(self.font_texture));
+            gl.uniform_1_i32(Some(&texture_loc), 0);
+
             
 
+            gl.bind_vertex_array(Some(self.vao));
              for cmd in draw_list.commands(){
 
                 match cmd {
@@ -274,12 +275,11 @@ impl Renderer{
                     _=> (),
                 }
 
-             }
+            }
 
              gl.bind_vertex_array(None);
-
-
-            }
+             gl.bind_texture(glow::TEXTURE_2D, None);
+           }
         
         }
 
