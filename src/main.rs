@@ -3,7 +3,7 @@ use glow::*;
 #[macro_use]
 extern crate memoffset;
 
-use imgui::im_str;
+use imgui::{InputText, im_str};
 
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 mod renderer;
@@ -55,6 +55,8 @@ fn main() {
     
         let imgui_renderer = renderer::Renderer::new(&gl, &mut imgui);
        
+        let mut modifiable_string = imgui::ImString::new("");
+
         //let window ;
         event_loop.run(move |event, _, control_flow| {
 
@@ -66,10 +68,7 @@ fn main() {
                 },
 
                 Event::NewEvents(_) => {
-                        // other application-specific logic
-                        let delta = Instant::now().duration_since(last_frame); //  last_frame.duration_since(  )
-                        imgui.io_mut().update_delta_time( delta );
-                        last_frame = Instant::now();
+                        
                 },
 
                 Event::MainEventsCleared => {
@@ -78,22 +77,37 @@ fn main() {
                 },
 
                 Event::RedrawRequested(_) => {
+
+                    gl.clear(glow::COLOR_BUFFER_BIT);
+
+
+                    // other application-specific logic
+                    let delta = Instant::now().duration_since(last_frame); //  last_frame.duration_since(  )
+                    imgui.io_mut().update_delta_time( delta );
+                    last_frame = Instant::now();
+
                     platform.handle_event(imgui.io_mut(), &windowed_context.window(), &event); // step 3
 
                     let ui = imgui.frame();
 
                     imgui::Window::new( im_str!("Hello window!") )
-                        .size([300.0, 110.0], imgui::Condition::FirstUseEver)
+                        .size([300.0, 110.0], imgui::Condition::FirstUseEver).position([0.0,0.0], imgui::Condition::Always)
                         .build( &ui, || {
+                        
                         imgui::Slider::new(im_str!("Slider!"))
-                        .range(0.0 ..= 1.0)
-                        .build(&ui, &mut changeable);
+                            .range(0.0 ..= 1.0)
+                            .build(&ui, &mut changeable);
+
+                        ui.text("text");
+
+                        imgui::InputText::new(&ui, im_str!("hey there!"), &mut modifiable_string ).resize_buffer(true).build();
+
                     });
 
-                    gl.clear(glow::COLOR_BUFFER_BIT);
                     let draw_data = ui.render();
                     imgui_renderer.render(&gl, &draw_data);
                     windowed_context.swap_buffers().unwrap();
+                    
 
                 },
                 // other application-specific event handling

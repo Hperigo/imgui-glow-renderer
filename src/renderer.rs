@@ -244,7 +244,7 @@ impl Renderer{
             gl.uniform_1_i32(Some(&texture_loc), 0);
 
             
-
+            gl.enable( glow::SCISSOR_TEST );
             gl.bind_vertex_array(Some(self.vao));
              for cmd in draw_list.commands(){
 
@@ -260,8 +260,15 @@ impl Renderer{
                                 ..
                             },
                     } =>  {
+                        
+                        
+                        //glScissor((int)clip_rect.x, (int)(fb_height - clip_rect.w), (int)(clip_rect.z - clip_rect.x), (int)(clip_rect.w - clip_rect.y));
+                        let x = (clip_rect[0] - clip_off[0]) * clip_scale[0];
+                        let y = (clip_rect[1] - clip_off[1]) * clip_scale[1];
+                        let z = (clip_rect[2] - clip_off[0]) * clip_scale[0];
+                        let w = (clip_rect[3] - clip_off[1]) * clip_scale[1];
 
-                        gl.scissor(clip_rect[0] as i32, clip_rect[1] as i32, clip_rect[2] as i32,clip_rect[3] as i32);
+                        gl.scissor( x as _, (fb_height - w) as _, (z - x ) as _, (w - y ) as _);
                         gl.draw_elements(glow::TRIANGLES, count as i32, glow::UNSIGNED_SHORT, (idx_offset * std::mem::size_of::<u16>()) as _ );
                         
                     },
@@ -271,6 +278,7 @@ impl Renderer{
 
             }
 
+            gl.disable(glow::SCISSOR_TEST);
              gl.bind_vertex_array(None);
              gl.bind_texture(glow::TEXTURE_2D, None);
            }
