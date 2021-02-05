@@ -1,13 +1,7 @@
 pub extern crate imgui;
-
-
-
-use std::borrow::Borrow;
-
 use glow::*;
 
-use imgui::internal::RawWrapper;
-use imgui::{BackendFlags, DrawCmd, DrawCmdParams, DrawData, ImString, TextureId, Textures};
+use imgui::{ DrawCmd, DrawCmdParams };
 #[derive(Debug)]
 pub struct Renderer{ 
     program : u32,

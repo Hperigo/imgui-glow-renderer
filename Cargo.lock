@@ -343,6 +343,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "glow-imgui-show"
+version = "0.1.0"
+dependencies = [
+ "glow",
+ "glutin",
+ "imgui",
+ "imgui-winit-support",
+ "memoffset",
+]
+
+[[package]]
 name = "glutin"
 version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -891,17 +902,6 @@ name = "slab"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
-
-[[package]]
-name = "slideshow"
-version = "0.1.0"
-dependencies = [
- "glow",
- "glutin",
- "imgui",
- "imgui-winit-support",
- "memoffset",
-]
 
 [[package]]
 name = "slotmap"
