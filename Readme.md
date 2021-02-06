@@ -14,7 +14,10 @@ let draw_data = ui.render();
 imgui_renderer.render(&gl, &draw_data);
 ```
 
-For more, please look at the basic example.
+For more, please look at the basic example using glow and glutin:
+```
+cargo run --example basic
+```
 
 
 ### Todo´s: 
