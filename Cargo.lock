@@ -343,7 +343,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "glow-imgui-show"
+name = "glow-imgui"
 version = "0.1.0"
 dependencies = [
  "glow",
