@@ -1,5 +1,5 @@
 [package]
-name = "glow-imgui"
+name = "imgui-glow-renderer"
 version = "0.1.0"
 authors = ["Henrique Perigo <hperigo@gmail.com>"]
 edition = "2018"

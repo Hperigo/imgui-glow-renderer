@@ -2,6 +2,11 @@ pub extern crate imgui;
 use glow::*;
 
 use imgui::{ DrawCmd, DrawCmdParams };
+
+#[macro_use]
+extern crate memoffset;
+
+
 #[derive(Debug)]
 pub struct Renderer{ 
     program : u32,
@@ -10,7 +15,6 @@ pub struct Renderer{
     ebo : u32,
     vao  : u32,
     vbo : u32,
-
 }
 
 /*
@@ -132,7 +136,7 @@ impl Renderer{
         renderer
     }   
 
-    fn setup(&mut self, gl : &glow::Context, imgui : &mut imgui::Context){
+    fn setup(&mut self, gl : &glow::Context, _ : &mut imgui::Context){
 
         unsafe{
 

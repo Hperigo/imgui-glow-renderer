@@ -1,12 +1,11 @@
 use glow::*;
 
-#[macro_use]
-extern crate memoffset;
-
 use imgui::{im_str};
-
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
-mod renderer;
+
+
+use imgui_glow_renderer::Renderer;
+
 use std::time::Instant;
 
 fn main() {
@@ -34,7 +33,6 @@ fn main() {
 
    
         let scale_factor = windowed_context.window().scale_factor() as f32;
-        println!("scale factor: {}", scale_factor);
         let mut imgui = imgui::Context::create();
         imgui.set_ini_filename(None);
     
@@ -57,7 +55,7 @@ fn main() {
         style.window_border_size = 0.0;
         style.colors[ imgui::StyleColor::TitleBg as usize] = [1.0, 1.0, 1.0, 1.0];
 
-        let imgui_renderer = renderer::Renderer::new(&gl, &mut imgui);
+        let imgui_renderer = Renderer::new(&gl, &mut imgui);
        
         let mut modifiable_string = imgui::ImString::new("");
         let mut mod_color = [0.0, 0.0, 0.0, 0.0];

@@ -343,17 +343,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "glow-imgui"
-version = "0.1.0"
-dependencies = [
- "glow",
- "glutin",
- "imgui",
- "imgui-winit-support",
- "memoffset",
-]
-
-[[package]]
 name = "glutin"
 version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -440,6 +429,17 @@ dependencies = [
  "bitflags",
  "imgui-sys",
  "parking_lot",
+]
+
+[[package]]
+name = "imgui-glow-renderer"
+version = "0.1.0"
+dependencies = [
+ "glow",
+ "glutin",
+ "imgui",
+ "imgui-winit-support",
+ "memoffset",
 ]
 
 [[package]]
