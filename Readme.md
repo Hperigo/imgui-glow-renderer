@@ -1,6 +1,6 @@
 # Glow-imgui-Render
 
-A dear imgui renderer using glow. Very early stage.
+A dear imgui renderer using glow at very early stage.
 
 to create the renderer pass glow::Context and imgui::Context: 
 ```
@@ -25,7 +25,3 @@ cargo run --example basic
 1. Add texture suppot
 2. Save and restore previous opengl context on draw function...
 3. Add webgl support.
-
-
-
-
