@@ -1,7 +1,7 @@
 pub extern crate imgui;
 use glow::*;
 
-use imgui::{ DrawCmd, DrawCmdParams };
+use imgui::{ DrawCmd, DrawCmdParams, Textures };
 
 #[macro_use]
 extern crate memoffset;
@@ -15,12 +15,13 @@ pub struct Renderer{
     ebo : u32,
     vao  : u32,
     vbo : u32,
+
+    textures : Textures<u32>, 
 }
 
 /*
 TODOS: 
-    1. Add texture upload functionality and texture hashmap
-    2. save and restore opengl context on draw function...
+    1. save and restore opengl context on draw function...
 */
 
 impl Renderer{
@@ -123,18 +124,26 @@ impl Renderer{
             font_texture
         };
 
+
+        let mut textures_hashmap = Textures::new();
+        textures_hashmap.replace( imgui.fonts().tex_id, texture );
+        
+
        let mut renderer = Renderer { 
             program,
             font_texture : texture,
             ebo : ebo,
             vao : vao,
             vbo : vbo,
+
+            textures : textures_hashmap,
         };
 
         renderer.setup(gl, imgui);
 
         renderer
     }   
+
 
     fn setup(&mut self, gl : &glow::Context, _ : &mut imgui::Context){
 
@@ -260,8 +269,6 @@ impl Renderer{
 
             let texture_loc = gl.get_uniform_location(self.program, "tex").expect("error finding texture sampler uniform");
             gl.uniform_1_i32(Some(&texture_loc), 0);
-            gl.bind_texture(glow::TEXTURE_2D, Some( self.font_texture ));
-
             
             gl.enable( glow::SCISSOR_TEST );
             gl.bind_vertex_array(Some(self.vao));
@@ -274,16 +281,19 @@ impl Renderer{
                             DrawCmdParams {
                                 clip_rect,
                                 idx_offset,
+                                texture_id,
                                 ..
                             },
                     } =>  {
                         
-                        //glScissor((int)clip_rect.x, (int)(fb_height - clip_rect.w), (int)(clip_rect.z - clip_rect.x), (int)(clip_rect.w - clip_rect.y));
                         let x = (clip_rect[0] - clip_off[0]) * clip_scale[0];
                         let y = (clip_rect[1] - clip_off[1]) * clip_scale[1];
                         let z = (clip_rect[2] - clip_off[0]) * clip_scale[0];
                         let w = (clip_rect[3] - clip_off[1]) * clip_scale[1];
-                        
+
+                        let texture = self.textures.get(texture_id).unwrap();
+                        gl.bind_texture(glow::TEXTURE_2D, Some(*texture));
+
                         gl.scissor( x as _, (fb_height - w) as _, (z - x ) as _, (w - y ) as _);
                         gl.draw_elements(glow::TRIANGLES, count as i32, glow::UNSIGNED_SHORT, (idx_offset * std::mem::size_of::<u16>()) as _ );
                         
