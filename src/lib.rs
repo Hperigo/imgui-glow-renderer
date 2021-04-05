@@ -9,14 +9,14 @@ extern crate memoffset;
 
 #[derive(Debug)]
 pub struct Renderer{ 
-    program : u32,
-    font_texture : u32, 
+    program : glow::Program,
+    font_texture : glow::Texture, 
 
-    ebo : u32,
-    vao  : u32,
-    vbo : u32,
+    ebo : glow::Buffer,
+    vao  : glow::VertexArray,
+    vbo : glow::Buffer,
 
-    textures : Textures<u32>, 
+    textures : Textures<glow::Texture>, 
 }
 
 /*
