@@ -1,11 +1,12 @@
+use std::time::Instant;
+
 use glow::*;
+use glutin::event::{Event, WindowEvent};
+use glutin::event_loop::ControlFlow;
 
 use imgui::im_str;
-use imgui_winit_support::{HiDpiMode, WinitPlatform};
-
 use imgui_glow_renderer::Renderer;
-
-use std::time::Instant;
+use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
 fn main() {
     let event_loop = glutin::event_loop::EventLoop::new();
@@ -16,6 +17,7 @@ fn main() {
         .unwrap();
     let windowed_context = unsafe { windowed_context.make_current().unwrap() };
 
+    // Create glow Context
     let gl = unsafe {
         let context = glow::Context::from_loader_function(|s| {
             windowed_context.get_proc_address(s) as *const _
@@ -23,13 +25,8 @@ fn main() {
         context
     };
 
-    use glutin::event::{Event, WindowEvent};
-    use glutin::event_loop::ControlFlow;
-
-    let mut changeable = 0.01;
+    // Used to update imgui's timer in main loop
     let mut last_frame = Instant::now();
-
-    let scale_factor = windowed_context.window().scale_factor() as f32;
 
     // Create and configure imgui context
     let mut imgui = imgui::Context::create();
@@ -46,6 +43,8 @@ fn main() {
     );
 
     // Configure font (using built-in fixed size bitmap font)
+    let scale_factor = windowed_context.window().scale_factor() as f32;
+
     let font_size = 13.0 * scale_factor;
     imgui
         .fonts()
@@ -68,6 +67,7 @@ fn main() {
     let imgui_renderer = Renderer::new(&gl, &mut imgui);
 
     // Attributes for demo app
+    let mut changeable = 0.01;
     let mut modifiable_string = imgui::ImString::new("");
     let mut mod_color = [0.0, 0.0, 0.0, 0.0];
 
