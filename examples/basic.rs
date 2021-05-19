@@ -118,6 +118,7 @@ fn main() {
 
                 ui.show_demo_window(&mut true);
 
+                platform.prepare_render(&ui, &windowed_context.window());
                 let draw_data = ui.render();
                 imgui_renderer.render(&gl, &draw_data);
                 windowed_context.swap_buffers().unwrap();
