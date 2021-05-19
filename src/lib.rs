@@ -1,41 +1,38 @@
 pub extern crate imgui;
 use glow::*;
 
-use imgui::{ DrawCmd, DrawCmdParams, Textures };
+use imgui::{DrawCmd, DrawCmdParams, Textures};
 
 #[macro_use]
 extern crate memoffset;
 
-
 #[derive(Debug)]
-pub struct Renderer{ 
-    program : glow::Program,
-    font_texture : glow::Texture, 
+pub struct Renderer {
+    program: glow::Program,
+    font_texture: glow::Texture,
 
-    ebo : glow::Buffer,
-    vao  : glow::VertexArray,
-    vbo : glow::Buffer,
+    ebo: glow::Buffer,
+    vao: glow::VertexArray,
+    vbo: glow::Buffer,
 
-    textures : Textures<glow::Texture>, 
+    textures: Textures<glow::Texture>,
 }
 
 /*
-TODOS: 
+TODOS:
     1. save and restore opengl context on draw function...
 */
 
-impl Renderer{
-    pub fn new( gl : &glow::Context, imgui : &mut imgui::Context ) -> Self{
-        
-        let (program, vao, vbo, ebo)  = unsafe {
-            
+impl Renderer {
+    pub fn new(gl: &glow::Context, imgui: &mut imgui::Context) -> Self {
+        let (program, vao, vbo, ebo) = unsafe {
             let shader_version = "#version 410";
             gl.create_program().expect("Error creating ImGui Shader");
 
-            let program= gl.create_program().expect("Cannot create program");
+            let program = gl.create_program().expect("Cannot create program");
 
             let (vertex_shader_source, fragment_shader_source) = (
-                //Vertex Shader ---- 
+                //Vertex Shader ----
                 r#"
                 
                 uniform mat4 matrix;
@@ -52,8 +49,7 @@ impl Renderer{
                    f_color = col;
                   gl_Position = matrix * vec4(pos.xy, 0, 1);
                 }"#,
-
-                //Frag Shader ---- 
+                //Frag Shader ----
                 r#"
                 uniform sampler2D tex;
                 in vec2 f_uv;
@@ -66,7 +62,7 @@ impl Renderer{
                   out_color = f_color * col;
                 }"#,
             );
-    
+
             let shader_sources = [
                 (glow::VERTEX_SHADER, vertex_shader_source),
                 (glow::FRAGMENT_SHADER, fragment_shader_source),
@@ -86,12 +82,12 @@ impl Renderer{
                 gl.attach_shader(program, shader);
                 shaders.push(shader);
             }
-    
+
             gl.link_program(program);
             if !gl.get_program_link_status(program) {
                 panic!(gl.get_program_info_log(program));
             }
-    
+
             for shader in shaders {
                 gl.detach_shader(program, shader);
                 gl.delete_shader(shader);
@@ -103,58 +99,78 @@ impl Renderer{
 
             let ebo = gl.create_buffer().expect("failed to create ebo");
             let vbo = gl.create_buffer().expect("failed to create vertex buffer");
-          
+
             (program, vao, vbo, ebo)
         };
 
-        let texture = unsafe {// Build fonts atlas
+        let texture = unsafe {
+            // Build fonts atlas
 
-            let font_texture = gl.create_texture().expect("could not create texture");   //return_param(|x| gl.GenTextures(1, x));
+            let font_texture = gl.create_texture().expect("could not create texture"); //return_param(|x| gl.GenTextures(1, x));
             gl.bind_texture(glow::TEXTURE_2D, Some(font_texture));
-            
-            gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MIN_FILTER, glow::LINEAR as _);
-            gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MAG_FILTER, glow::LINEAR as _);
-            
-            let mut fonts =  imgui.fonts();
-            let texture_atlas= fonts.build_rgba32_texture();
-            gl.tex_image_2d(glow::TEXTURE_2D, 0, glow::RGBA as _, texture_atlas.width as _, texture_atlas.height as _, 0, glow::RGBA, glow::UNSIGNED_BYTE ,  Some(&texture_atlas.data) );
+
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MIN_FILTER,
+                glow::LINEAR as _,
+            );
+            gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MAG_FILTER,
+                glow::LINEAR as _,
+            );
+
+            let mut fonts = imgui.fonts();
+            let texture_atlas = fonts.build_rgba32_texture();
+            gl.tex_image_2d(
+                glow::TEXTURE_2D,
+                0,
+                glow::RGBA as _,
+                texture_atlas.width as _,
+                texture_atlas.height as _,
+                0,
+                glow::RGBA,
+                glow::UNSIGNED_BYTE,
+                Some(&texture_atlas.data),
+            );
             gl.pixel_store_i32(glow::UNPACK_ROW_LENGTH, 0);
 
             fonts.tex_id = imgui::TextureId::from(usize::MAX);
             font_texture
         };
 
-
         let mut textures_hashmap = Textures::new();
-        textures_hashmap.replace( imgui.fonts().tex_id, texture );
-        
+        textures_hashmap.replace(imgui.fonts().tex_id, texture);
 
-       let mut renderer = Renderer { 
+        let mut renderer = Renderer {
             program,
-            font_texture : texture,
-            ebo : ebo,
-            vao : vao,
-            vbo : vbo,
+            font_texture: texture,
+            ebo: ebo,
+            vao: vao,
+            vbo: vbo,
 
-            textures : textures_hashmap,
+            textures: textures_hashmap,
         };
 
         renderer.setup(gl, imgui);
 
         renderer
-    }   
+    }
 
+    fn setup(&mut self, gl: &glow::Context, _: &mut imgui::Context) {
+        unsafe {
+            gl.bind_vertex_array(Some(self.vao));
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
 
-    fn setup(&mut self, gl : &glow::Context, _ : &mut imgui::Context){
-
-        unsafe{
-
-            gl.bind_vertex_array( Some(self.vao) );
-            gl.bind_buffer( glow::ARRAY_BUFFER, Some(self.vbo));
-
-            let pos_attrib_loc = gl.get_attrib_location(self.program, "pos").expect("could not find pos attrib");
-            let uv_attrib_loc = gl.get_attrib_location(self.program, "uv").expect("could not find uv attrib");
-            let color_attrib_loc = gl.get_attrib_location(self.program, "col").expect("could not find color attrib");
+            let pos_attrib_loc = gl
+                .get_attrib_location(self.program, "pos")
+                .expect("could not find pos attrib");
+            let uv_attrib_loc = gl
+                .get_attrib_location(self.program, "uv")
+                .expect("could not find uv attrib");
+            let color_attrib_loc = gl
+                .get_attrib_location(self.program, "col")
+                .expect("could not find color attrib");
 
             gl.enable_vertex_attrib_array(pos_attrib_loc);
             gl.vertex_attrib_pointer_f32(
@@ -163,7 +179,7 @@ impl Renderer{
                 glow::FLOAT,
                 false,
                 std::mem::size_of::<imgui::DrawVert>() as i32,
-                offset_of!(imgui::DrawVert, pos)  as i32,
+                offset_of!(imgui::DrawVert, pos) as i32,
             );
 
             gl.enable_vertex_attrib_array(uv_attrib_loc);
@@ -173,7 +189,7 @@ impl Renderer{
                 glow::FLOAT,
                 false,
                 std::mem::size_of::<imgui::DrawVert>() as i32,
-                offset_of!(imgui::DrawVert, uv)  as i32,
+                offset_of!(imgui::DrawVert, uv) as i32,
             );
 
             gl.enable_vertex_attrib_array(color_attrib_loc);
@@ -185,16 +201,14 @@ impl Renderer{
                 std::mem::size_of::<imgui::DrawVert>() as i32,
                 offset_of!(imgui::DrawVert, col) as i32,
             );
-            
 
             gl.bind_vertex_array(None);
-            gl.bind_buffer( glow::ELEMENT_ARRAY_BUFFER, None);
-            gl.bind_buffer( glow::ARRAY_BUFFER, None);
+            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
+            gl.bind_buffer(glow::ARRAY_BUFFER, None);
         }
     }
 
-    pub fn render(&self, gl : &glow::Context, draw_data : &imgui::DrawData){
-            
+    pub fn render(&self, gl: &glow::Context, draw_data: &imgui::DrawData) {
         let fb_width = draw_data.display_size[0] * draw_data.framebuffer_scale[0];
         let fb_height = draw_data.display_size[1] * draw_data.framebuffer_scale[1];
         if !(fb_width > 0.0 && fb_height > 0.0) {
@@ -205,12 +219,13 @@ impl Renderer{
         let right = draw_data.display_pos[0] + draw_data.display_size[0];
         let top = draw_data.display_pos[1];
         let bottom = draw_data.display_pos[1] + draw_data.display_size[1];
-        
+
+        #[rustfmt::skip]
         let matrix = [
             (2.0 / (right - left)), 0.0, 0.0, 0.0,
             0.0, (2.0 / (top - bottom)), 0.0, 0.0,
             0.0, 0.0, -1.0, 0.0,
-            
+
                 (right + left) / (left - right),
                 (top + bottom) / (bottom - top),
                 0.0,
@@ -220,98 +235,96 @@ impl Renderer{
         let clip_off = draw_data.display_pos;
         let clip_scale = draw_data.framebuffer_scale;
 
-    unsafe{
+        unsafe {
+            gl.viewport(0, 0, fb_width as _, fb_height as _);
+            gl.bind_vertex_array(Some(self.vao));
+            gl.bind_buffer(glow::ARRAY_BUFFER, Some(self.vbo));
 
-        gl.viewport(0, 0, fb_width as _, fb_height as _);
-        gl.bind_vertex_array( Some(self.vao) );
-        gl.bind_buffer( glow::ARRAY_BUFFER, Some(self.vbo));
-
-
-         for draw_list in draw_data.draw_lists() {
-
-
-            // Buffer data to opengl --------
-            let vtx_buffer = draw_list.vtx_buffer();
-            let buffer = std::slice::from_raw_parts(
-                                vtx_buffer.as_ptr() as *const u8,
-                                vtx_buffer.len() * std::mem::size_of::<imgui::DrawVert>());
-            
-            let mut indices : Vec<u16> = Vec::new();
-
-            for data in draw_list.idx_buffer(){
-                indices.push(*data);
-            }
-
-            gl.buffer_data_u8_slice(glow::ARRAY_BUFFER,
-                      buffer , glow::STREAM_DRAW
-            );
-            
-            gl.bind_buffer( glow::ELEMENT_ARRAY_BUFFER, Some(self.ebo));
-            gl.buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER,                
-                std::slice::from_raw_parts(
-                    indices.as_ptr() as *const u8,
-                    indices.len() * std::mem::size_of::<u16>()) , glow::STREAM_DRAW
-            );
-
-           // end of buffer data ---
-
-
-            gl.enable( glow::BLEND );
-            gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-            gl.use_program(Some(self.program));
-            
-            let shader_loc = gl.get_uniform_location(self.program, "matrix").expect("error finding matrix uniform");
-            gl.uniform_matrix_4_f32_slice(
-                Some(&shader_loc), 
-                false, 
-                &matrix,
+            for draw_list in draw_data.draw_lists() {
+                // Buffer data to opengl --------
+                let vtx_buffer = draw_list.vtx_buffer();
+                let buffer = std::slice::from_raw_parts(
+                    vtx_buffer.as_ptr() as *const u8,
+                    vtx_buffer.len() * std::mem::size_of::<imgui::DrawVert>(),
                 );
 
-            let texture_loc = gl.get_uniform_location(self.program, "tex").expect("error finding texture sampler uniform");
-            gl.uniform_1_i32(Some(&texture_loc), 0);
-            
-            gl.enable( glow::SCISSOR_TEST );
-            gl.bind_vertex_array(Some(self.vao));
-             for cmd in draw_list.commands(){
+                let mut indices: Vec<u16> = Vec::new();
 
-                match cmd {
-                    DrawCmd::Elements {
-                        count,
-                        cmd_params:
-                            DrawCmdParams {
-                                clip_rect,
-                                idx_offset,
-                                texture_id,
-                                ..
-                            },
-                    } =>  {
-                        
-                        let x = (clip_rect[0] - clip_off[0]) * clip_scale[0];
-                        let y = (clip_rect[1] - clip_off[1]) * clip_scale[1];
-                        let z = (clip_rect[2] - clip_off[0]) * clip_scale[0];
-                        let w = (clip_rect[3] - clip_off[1]) * clip_scale[1];
-
-                        let texture = self.textures.get(texture_id).unwrap();
-                        gl.bind_texture(glow::TEXTURE_2D, Some(*texture));
-
-                        gl.scissor( x as _, (fb_height - w) as _, (z - x ) as _, (w - y ) as _);
-                        gl.draw_elements(glow::TRIANGLES, count as i32, glow::UNSIGNED_SHORT, (idx_offset * std::mem::size_of::<u16>()) as _ );
-                        
-                    },
-                    
-                    _=> (),
+                for data in draw_list.idx_buffer() {
+                    indices.push(*data);
                 }
 
-            }
+                gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, buffer, glow::STREAM_DRAW);
 
-             gl.disable(glow::SCISSOR_TEST);
-             gl.bind_vertex_array(None);
-             gl.bind_texture(glow::TEXTURE_2D, None);
-           }
+                gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.ebo));
+                gl.buffer_data_u8_slice(
+                    glow::ELEMENT_ARRAY_BUFFER,
+                    std::slice::from_raw_parts(
+                        indices.as_ptr() as *const u8,
+                        indices.len() * std::mem::size_of::<u16>(),
+                    ),
+                    glow::STREAM_DRAW,
+                );
+
+                // end of buffer data ---
+
+                gl.enable(glow::BLEND);
+                gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+                gl.use_program(Some(self.program));
+
+                let shader_loc = gl
+                    .get_uniform_location(self.program, "matrix")
+                    .expect("error finding matrix uniform");
+                gl.uniform_matrix_4_f32_slice(Some(&shader_loc), false, &matrix);
+
+                let texture_loc = gl
+                    .get_uniform_location(self.program, "tex")
+                    .expect("error finding texture sampler uniform");
+                gl.uniform_1_i32(Some(&texture_loc), 0);
+
+                gl.enable(glow::SCISSOR_TEST);
+                gl.bind_vertex_array(Some(self.vao));
+                for cmd in draw_list.commands() {
+                    match cmd {
+                        DrawCmd::Elements {
+                            count,
+                            cmd_params:
+                                DrawCmdParams {
+                                    clip_rect,
+                                    idx_offset,
+                                    texture_id,
+                                    ..
+                                },
+                        } => {
+                            let x = (clip_rect[0] - clip_off[0]) * clip_scale[0];
+                            let y = (clip_rect[1] - clip_off[1]) * clip_scale[1];
+                            let z = (clip_rect[2] - clip_off[0]) * clip_scale[0];
+                            let w = (clip_rect[3] - clip_off[1]) * clip_scale[1];
+
+                            let texture = self.textures.get(texture_id).unwrap();
+                            gl.bind_texture(glow::TEXTURE_2D, Some(*texture));
+
+                            gl.scissor(x as _, (fb_height - w) as _, (z - x) as _, (w - y) as _);
+                            gl.draw_elements(
+                                glow::TRIANGLES,
+                                count as i32,
+                                glow::UNSIGNED_SHORT,
+                                (idx_offset * std::mem::size_of::<u16>()) as _,
+                            );
+                        }
+
+                        _ => (),
+                    }
+                }
+
+                gl.disable(glow::SCISSOR_TEST);
+                gl.bind_vertex_array(None);
+                gl.bind_texture(glow::TEXTURE_2D, None);
+            }
         }
     }
 
-    pub fn cleanup(&self, gl : &glow::Context) {
+    pub fn cleanup(&self, gl: &glow::Context) {
         unsafe {
             gl.delete_buffer(self.vbo);
             gl.delete_buffer(self.ebo);
