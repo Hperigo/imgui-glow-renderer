@@ -30,9 +30,14 @@ fn main() {
     let mut last_frame = Instant::now();
 
     let scale_factor = windowed_context.window().scale_factor() as f32;
+
+    // Create and configure imgui context
     let mut imgui = imgui::Context::create();
+
+    // Disable imgui's automatic saving of settings
     imgui.set_ini_filename(None);
 
+    // Create platform handler
     let mut platform = WinitPlatform::init(&mut imgui);
     platform.attach_window(
         imgui.io_mut(),
@@ -40,6 +45,7 @@ fn main() {
         HiDpiMode::Default,
     );
 
+    // Configure font (using built-in fixed size bitmap font)
     let font_size = 13.0 * scale_factor;
     imgui
         .fonts()
@@ -51,23 +57,28 @@ fn main() {
         }]);
 
     imgui.io_mut().font_global_scale = (1.0 / scale_factor) as f32;
+
+    // Tweak imgui style
     let mut style = imgui.style_mut().clone();
     style.window_rounding = 0.0;
     style.window_border_size = 0.0;
     style.colors[imgui::StyleColor::TitleBg as usize] = [1.0, 1.0, 1.0, 1.0];
 
+    // Create glow renderer
     let imgui_renderer = Renderer::new(&gl, &mut imgui);
 
+    // Attributes for demo app
     let mut modifiable_string = imgui::ImString::new("");
     let mut mod_color = [0.0, 0.0, 0.0, 0.0];
 
-    //let window ;
+    // Main event loop
     event_loop.run(move |event, _, control_flow| {
         match event {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
             } => {
+                // Clean up on window close
                 imgui_renderer.cleanup(&gl);
 
                 *control_flow = ControlFlow::Exit;
@@ -83,19 +94,25 @@ fn main() {
             }
 
             Event::RedrawRequested(_) => {
+                // Draw application window
+
+                // Blank BG
                 unsafe {
                     gl.clear(glow::COLOR_BUFFER_BIT);
                 }
 
-                // other application-specific logic
-                let delta = Instant::now().duration_since(last_frame); //  last_frame.duration_since(  )
+                // Update imgui's timer
+                let delta = Instant::now().duration_since(last_frame);
                 imgui.io_mut().update_delta_time(delta);
                 last_frame = Instant::now();
 
-                platform.handle_event(imgui.io_mut(), &windowed_context.window(), &event); // step 3
+                // Pass events to imgui platform handler
+                platform.handle_event(imgui.io_mut(), &windowed_context.window(), &event);
 
+                // Create the imgui::Ui context
                 let ui = imgui.frame();
 
+                // Demo app contents
                 imgui::Window::new(im_str!("Hello window!"))
                     .size(
                         [300.0, windowed_context.window().inner_size().height as f32],
@@ -115,18 +132,21 @@ fn main() {
                             .hdr(true)
                             .build(&ui);
                     });
-
                 ui.show_demo_window(&mut true);
+                // End demo app contents
 
+                // Get draw list for rendering
                 platform.prepare_render(&ui, &windowed_context.window());
                 let draw_data = ui.render();
+
+                // Render it
                 imgui_renderer.render(&gl, &draw_data);
                 windowed_context.swap_buffers().unwrap();
             }
-            // other application-specific event handling
+
             event => {
+                // Pass to imgui platform by default
                 platform.handle_event(imgui.io_mut(), &windowed_context.window(), &event);
-                // step 3
             }
         }
     });
